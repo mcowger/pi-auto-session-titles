@@ -264,7 +264,11 @@ export default function (pi: ExtensionAPI) {
 			const currentTitle = ctx.sessionManager.getSessionName();
 			const nextTitle = await generateTitle(ctx, snippet);
 			if (!shutdown && nextTitle && nextTitle !== currentTitle) {
-				pi.setSessionName(nextTitle);
+				try {
+					pi.setSessionName(nextTitle);
+				} catch {
+					// Extension instance became stale (session replaced/reloaded) before we could set the title.
+				}
 			}
 		} catch {
 			// Leave the existing title unchanged on failure.
