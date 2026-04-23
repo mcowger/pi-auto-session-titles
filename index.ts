@@ -195,6 +195,7 @@ function fallbackTitleFromSnippet(snippet: string): string {
 
 export default function (pi: ExtensionAPI) {
 	let done = false;
+	let shutdown = false;
 
 	function hasConversationMessages(ctx: ExtensionContext) {
 		return ctx.sessionManager.getBranch().some((entry) => entry.type === "message");
@@ -262,7 +263,7 @@ export default function (pi: ExtensionAPI) {
 
 			const currentTitle = ctx.sessionManager.getSessionName();
 			const nextTitle = await generateTitle(ctx, snippet);
-			if (nextTitle && nextTitle !== currentTitle) {
+			if (!shutdown && nextTitle && nextTitle !== currentTitle) {
 				pi.setSessionName(nextTitle);
 			}
 		} catch {
@@ -294,5 +295,6 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("session_shutdown", async () => {
 		done = true;
+		shutdown = true;
 	});
 }
