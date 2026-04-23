@@ -196,24 +196,29 @@ function fallbackTitleFromSnippet(snippet: string): string {
 export default function (pi: ExtensionAPI) {
 	let done = false;
 	let shutdown = false;
+	const abortController = new AbortController();
 
 	function hasConversationMessages(ctx: ExtensionContext) {
 		return ctx.sessionManager.getBranch().some((entry) => entry.type === "message");
 	}
 
 	async function generateTitle(ctx: ExtensionContext, snippet: string): Promise<string> {
+		if (shutdown) return "";
 		const modelRef = resolveTitleModel(ctx);
 		if (!modelRef) return "";
 
+		if (shutdown) return "";
 		const currentTitle = ctx.sessionManager.getSessionName();
 		if (/^Ralph loop iteration \d+\/\d+$/.test(currentTitle ?? "")) return "";
 		const apiModel = ctx.modelRegistry.find(modelRef.provider, modelRef.modelId);
 		if (!apiModel) return "";
 
+		if (shutdown) return "";
 		const auth = await ctx.modelRegistry.getApiKeyAndHeaders(apiModel);
 		if (!auth.ok || !auth.apiKey) return "";
 
 		const tryGenerate = async (retrying = false) => {
+			if (shutdown) return "";
 			const response = await complete(
 				apiModel,
 				{
@@ -229,6 +234,7 @@ export default function (pi: ExtensionAPI) {
 					apiKey: auth.apiKey,
 					headers: auth.headers,
 					reasoningEffort: modelRef.thinkingLevel,
+					signal: abortController.signal,
 				},
 			);
 
@@ -255,23 +261,21 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	async function runTitleOnce(ctx: ExtensionContext, prompt?: string) {
-		if (done) return;
+		if (done || shutdown) return;
 		done = true;
 		try {
+			if (shutdown) return;
 			const snippet = buildConversationSnippet(ctx, prompt);
 			if (!snippet) return;
 
+			if (shutdown) return;
 			const currentTitle = ctx.sessionManager.getSessionName();
 			const nextTitle = await generateTitle(ctx, snippet);
 			if (!shutdown && nextTitle && nextTitle !== currentTitle) {
-				try {
-					pi.setSessionName(nextTitle);
-				} catch {
-					// Extension instance became stale (session replaced/reloaded) before we could set the title.
-				}
+				pi.setSessionName(nextTitle);
 			}
 		} catch {
-			// Leave the existing title unchanged on failure.
+			// Ignore errors from stale ctx/pi after session shutdown or any other failure.
 		}
 	}
 
@@ -297,8 +301,9 @@ export default function (pi: ExtensionAPI) {
 		void runTitleOnce(ctx, event.prompt);
 	});
 
-	pi.on("session_shutdown", async () => {
-		done = true;
+	pi.on("session_shutdown", () => {
 		shutdown = true;
+		done = true;
+		abortController.abort();
 	});
 }
