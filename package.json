@@ -1,0 +1,31 @@
+{
+  "name": "pi-auto-session-titles",
+  "version": "1.0.0",
+  "description": "Auto-generate and manually rename pi session titles",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "session",
+    "pi-coding-agent"
+  ],
+  "license": "MIT",
+  "author": "edxeth",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edxeth/pi-auto-session-titles.git"
+  },
+  "type": "module",
+  "files": [
+    "index.ts",
+    "README.md"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-ai": "*"
+  }
+}
